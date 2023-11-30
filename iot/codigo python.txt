@@ -1,0 +1,90 @@
+import serial
+import time
+import threading
+import re
+from PySimpleGUI import PySimpleGUI as sg
+
+layout = [
+    [sg.Text("Qualidade do ar", key="ar", justification='center', font=('Helvetica', 14))],
+    [sg.Text(f'Verificando...', key='temp')],
+    [sg.Text(f'Capturando Informações...', key='info')],
+]
+window = sg.Window('MQ Sensor Capture', layout, size=(200, 100))
+
+
+def monitorar_porta_serial(ser):
+    global QualidadeAr, info, cor_texto
+
+    try:
+        while True:
+            linha = ser.readline().rstrip()
+            if linha:
+                print(linha)
+
+                decodeString = linha.decode('utf-8')
+                removeLetras = re.findall(r'\d+', decodeString)
+                QualidadeAr = '.'.join(removeLetras)
+                qualidadeParaVerificacao = float(QualidadeAr)
+
+                if qualidadeParaVerificacao <= 50:
+                    info = 'Bom'
+                    cor_texto = ("#00FF00")
+                elif qualidadeParaVerificacao >= 51 and qualidadeParaVerificacao <= 100:
+                    info = "Moderado"
+                    cor_texto = ("#ffd700")
+                elif qualidadeParaVerificacao >= 101 and qualidadeParaVerificacao <= 150:
+                    info = "Inadequado"
+                    cor_texto = ("#d88800")
+                elif qualidadeParaVerificacao >= 151 and qualidadeParaVerificacao <= 200:
+                    info = "Insalubre"
+                    cor_texto = ("#a60002")
+                elif qualidadeParaVerificacao >= 201 and qualidadeParaVerificacao <= 300:
+                    info = "Muito Insalubre"
+                    cor_texto = ("#380037")
+                elif qualidadeParaVerificacao >= 301 and qualidadeParaVerificacao <= 500:
+                    info = "Perigoso"
+                    cor_texto = ("#ff0000")
+
+                window.write_event_value('-UPDATE-', (QualidadeAr, info, cor_texto))
+
+    except serial.SerialException:
+        print("Erro na comunicação serial")
+        window.write_event_value('-EXIT-', None)
+
+
+porta_serial = 'COM3'
+
+ser = serial.Serial(porta_serial, 9600, timeout=1)
+
+time.sleep(2)
+
+
+def interface_grafica():
+    global QualidadeAr, info, cor_texto
+
+    try:
+        while True:
+            event, values = window.read()
+
+            if event == sg.WIN_CLOSED or event == 'Sair':
+                break
+            window['temp'].update(f'Qualidade do Ar: {QualidadeAr} PPM')
+            window['info'].update(f'Qualidade: {info}', text_color=cor_texto)
+
+    except Exception as e:
+        print(f"Erro na interface gráfica: {e}")
+
+    finally:
+        window.close()
+
+
+gui_thread = threading.Thread(target=interface_grafica)
+gui_thread.start()
+
+serial_thread = threading.Thread(target=monitorar_porta_serial, args=(ser,))
+serial_thread.start()
+
+gui_thread.join()
+
+ser.close()
+print("Comunicação encerrada.")

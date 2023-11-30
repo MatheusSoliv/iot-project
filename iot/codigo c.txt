@@ -1,0 +1,24 @@
+int sensorPin = A0; //Atribui o analógico A0 à variável sensorPin
+float m = -0.3376; //Parâmetro Slope
+float b = 0.7165; //Parâmetro Y-Intercept
+float R0 = 10.55; 
+float sensor_volt; 
+float Rs; //Define variável Rs para armazenar a resistência do sensor
+float razao; //Define variável para armazenar o valor da razão entre Rs e R0
+int valorSensor = 0; 
+float ppm_log; //Variável para armazenar o valor de ppm em escala linear
+float ppm; // Variável para armazenar o valor de ppm em escala logarítmica
+void setup() {
+ Serial.begin(9600);
+ pinMode(sensorPin, INPUT); //Configuração de sensorPin como entrada
+}
+void loop() {
+ valorSensor = analogRead(sensorPin); //Realiza a leitura analógica do sensor
+ sensor_volt = valorSensor * (5.0 / 1023.0); 
+ Rs = ((5.0 * 10.0) / sensor_volt) - 10.0;
+ razao = Rs / R0; //Calcula a razão entre Rs/R0 //Imprime na serial o valor de razao
+ ppm_log = (log10(razao) - b) / m;
+ ppm = pow(10, ppm_log);
+ Serial.println(ppm);
+ delay(3000);
+}
